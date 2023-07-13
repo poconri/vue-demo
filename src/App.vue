@@ -42,14 +42,22 @@ watch(isAddingComment, (newValue) => {
   }
 });
 
+const CANCEL_LIMIT_THRESHOLD = 5;
 
 const updateTooltipPosition = (index: number) => {
-  const box = document.querySelector(`.comment-box-${index}`);
-  const tooltip = document.querySelector(`.comment-tooltip-${index}`);
+  const box = document.querySelector<HTMLElement>(`.comment-box-${index}`);
+  const tooltip = document.querySelector<HTMLElement>(`.comment-tooltip-${index}`);
+
   if (box && tooltip && isHTMLDivElement(tooltip)) {
-      tooltip.style.position = 'absolute';
-      tooltip.style.left = '0';
+    tooltip.style.position = 'absolute';
+
+    if (start.y > currentBox.y) {
+      tooltip.style.top = `${box.offsetHeight}px`;
+    } else {
       tooltip.style.top = '0';
+    }
+
+    tooltip.style.left = '0';
   }
 };
 
@@ -69,30 +77,35 @@ const handleClick = () => {
 };
 
 const handleMouseDown = (event: MouseEvent) => {
-  if (isAddingComment.value && isElement(event.currentTarget)) {
+  if (isAddingComment.value && isElement(event.currentTarget)&& !isWritingComment.value) {
     const container = event.currentTarget.getBoundingClientRect();
       start.x = event.clientX - container.left;
       start.y = event.clientY - container.top;
     currentBox.x = start.x;
     currentBox.y = start.y;
     isDrawing.value = true;
+
   }
 };
 
-const handleMouseUp = (event: MouseEvent) => {
+const handleMouseUp = () => {
   if (isAddingComment.value && isDrawing.value) {
     isDrawing.value = false;
 
     let x = Math.min(start.x, currentBox.x);
     let y = Math.min(start.y, currentBox.y);
-    let width = Math.abs(start.x - currentBox.x);
-    let height = Math.abs(start.y - currentBox.y);
-    console.log(start.x,start.y,currentBox.x,currentBox.y,'width, height')
-    if (width > 5 && height > 5) {
-      comments.value.push({ x, y, text: '', width, height, tempText:'' });
+    let width = currentBox.width;
+    let height = currentBox.height;
+    if (width > CANCEL_LIMIT_THRESHOLD && height > CANCEL_LIMIT_THRESHOLD) {
+      comments.value.push({ x, y, text: '', width, height, tempText: '' });
       editingComment.value = comments.value.length - 1;
       isWritingComment.value = true;
-      updateTooltipPosition(editingComment.value);
+
+      nextTick(() => {
+        if (editingComment.value !== null) {
+          updateTooltipPosition(editingComment.value);
+        }
+      });
     } else {
       isAddingComment.value = false;
     }
@@ -113,8 +126,8 @@ const saveComment = (index: number) => {
 
 const handleMouseMove = (event: MouseEvent) => {
   if (!isDrawing.value || !isElement(event.currentTarget)) return;
-
   const container = event.currentTarget.getBoundingClientRect();
+
   const currentX = event.clientX - container.left;
   const currentY = event.clientY - container.top;
 
@@ -123,17 +136,9 @@ const handleMouseMove = (event: MouseEvent) => {
   currentBox.width = Math.abs(currentX - start.x);
   currentBox.height = Math.abs(currentY - start.y);
 
-  if (currentX < start.x) {
-    currentBox.x = currentX;
-  }
-  if (currentY < start.y) {
-    currentBox.y = currentY;
-  }
-
-  if (isAddingComment.value && editingComment.value !== null) {
-    updateTooltipPosition(editingComment.value);
-  }
+  console.log(currentBox.x, currentBox.y, currentBox.width, currentBox.height)
 }
+
 
 const cancelComment = (index: number) => {
   comments.value.splice(index, 1);
